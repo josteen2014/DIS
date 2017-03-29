@@ -70,8 +70,6 @@ void yuv2bmp(unsigned char *pFrame[3], int nWidth, int nHeight, unsigned char *p
 	memcpy(pBBuf + 14, (char*)&stInfoHdr, 40);
 
 	pRGBData = pBBuf + stFileHdr.bfOffBits;
-#pragma omp parallel
-#pragma omp for collapse(2)
 	for (i = 0, k = 0; i < nWidth * 3; i += 3, k++) {
 		for (j = 0; j < nHeight; j++) {
 			Y = (unsigned char)pFrame[0][j*nWidth + k];
@@ -195,35 +193,30 @@ int main(int argc, char *argv[]) {
 			printf("\nNot enough data to read YUV frame");
 			break;
 		}
-		unsigned char m = 3;
 		oClock.Start();
 		// upsample YUV to 444 format before converting to RGB
 		// U and V components are upsampled to nWidth*nHeight 
 		// resolution for RGB conversion
-		while (m) {
-			k = 0;
-			int nUVPitch = nWidth / 2;
-			unsigned char *pUData, *pVData, *pUDest0, *pVDest0, *pUDest1, *pVDest1;
-			for (i = nHeight - 1; i >= 0; i -= 2) {
+		k = 0;
+		int nUVPitch = nWidth / 2;
+		unsigned char *pUData, *pVData, *pUDest0, *pVDest0, *pUDest1, *pVDest1;
+		for (i = nHeight - 1; i >= 0; i -= 2) {
 
-				pUData = pYUVData[1] + (i / 2)*nUVPitch;
-				pVData = pYUVData[2] + (i / 2)*nUVPitch;
+			pUData = pYUVData[1] + (i / 2)*nUVPitch;
+			pVData = pYUVData[2] + (i / 2)*nUVPitch;
 
-				pUDest0 = pYUVData[1] + i*nWidth;
-				pVDest0 = pYUVData[2] + i*nWidth;
+			pUDest0 = pYUVData[1] + i*nWidth;
+			pVDest0 = pYUVData[2] + i*nWidth;
 
-				pUDest1 = pYUVData[1] + (i - 1)*nWidth;
-				pVDest1 = pYUVData[2] + (i - 1)*nWidth;
-				for (j = 0, k = 0; j < nWidth / 2; j++, k += 2) {
-					pUDest0[k] = pUDest0[k + 1] = pUDest1[k] = pUDest1[k + 1] = pUData[j];
-					pVDest0[k] = pVDest0[k + 1] = pVDest1[k] = pVDest1[k + 1] = pVData[j];
-				}
+			pUDest1 = pYUVData[1] + (i - 1)*nWidth;
+			pVDest1 = pYUVData[2] + (i - 1)*nWidth;
+			for (j = 0, k = 0; j < nWidth / 2; j++, k += 2) {
+				pUDest0[k] = pUDest0[k + 1] = pUDest1[k] = pUDest1[k + 1] = pUData[j];
+				pVDest0[k] = pVDest0[k + 1] = pVDest1[k] = pVDest1[k + 1] = pVData[j];
 			}
-
-			yuv2bmp(pYUVData, nWidth, nHeight, pBMPData, &nBMPSize);
-			nBTime += oClock.Stop();
-			m--;
 		}
+		yuv2bmp(pYUVData, nWidth, nHeight, pBMPData, &nBMPSize);
+		nBTime += oClock.Stop();
 	}
 
 	printf("\nBase BMP Encoding Time: %f", nBTime);
